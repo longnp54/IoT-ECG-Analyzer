@@ -1,0 +1,684 @@
+[
+    {
+        "id": "4b3b469a15245346",
+        "type": "tab",
+        "label": "Flow 1",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "7374572c4c84cfcd",
+        "type": "mqtt in",
+        "z": "4b3b469a15245346",
+        "name": "",
+        "topic": "ecg",
+        "qos": "0",
+        "datatype": "auto-detect",
+        "broker": "b987e6d858e3b31c",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 210,
+        "y": 500,
+        "wires": [
+            [
+                "cf4e89cfed207c56"
+            ]
+        ]
+    },
+    {
+        "id": "3f9a8df7cb4eb170",
+        "type": "function",
+        "z": "4b3b469a15245346",
+        "name": "Aggregate ECG Data",
+        "func": "var globalBuffer = context.global.get('ecgBuffer') || [];  // Lấy hoặc khởi tạo bộ đệm nếu chưa có\n\n// Nối dữ liệu mới vào bộ đệm hiện tại (dữ liệu đã có trong msg.payload)\nglobalBuffer = globalBuffer.concat(msg.payload);\n\n// Lưu lại bộ đệm sau khi nối dữ liệu\ncontext.global.set('ecgBuffer', globalBuffer);\n\nif (globalBuffer.length >= 3000) { \n    msg.payload = globalBuffer.slice(0, 3000);  // Chỉ lấy 3000 mẫu đầu tiên\n    context.global.set('ecgBuffer', globalBuffer.slice(3000));  // Giữ lại mẫu còn lại nếu có\n    return msg;  // Trả về dữ liệu đã đủ mẫu\n} else {\n    return null;  // Nếu chưa đủ mẫu thì không gửi dữ liệu\n}\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 700,
+        "y": 500,
+        "wires": [
+            [
+                "86c054a367d0ea37",
+                "a243cf0e7b15ec21"
+            ]
+        ]
+    },
+    {
+        "id": "cf4e89cfed207c56",
+        "type": "function",
+        "z": "4b3b469a15245346",
+        "name": ": Decode ECG Data",
+        "func": "var deltaEncodedData = msg.payload;\n\nif (typeof deltaEncodedData === \"string\" && deltaEncodedData.trim().length > 0) {\n    try {\n        // Tách chuỗi và chuyển thành mảng các số\n        var deltas = deltaEncodedData.split(',').map(Number);\n\n        // Kiểm tra xem tất cả các phần tử có phải là số hợp lệ không\n        if (deltas.some(isNaN)) throw new Error(\"Invalid data format, contains non-numeric values\");\n\n        var ecgData = [];\n        var previousValue = deltas[0];\n        ecgData.push(previousValue);\n\n        // Giải mã dữ liệu delta\n        for (var i = 1; i < deltas.length; i++) {\n            previousValue += deltas[i];\n            ecgData.push(previousValue);\n        }\n\n        // Đặt dữ liệu đã giải mã vào payload\n        msg.payload = ecgData;\n    } catch (err) {\n        node.error(\"Error decoding data: \" + err.message, msg);\n        return null;\n    }\n} else {\n    node.error(\"Invalid or empty payload received\", msg);\n    return null;\n}\n\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 440,
+        "y": 500,
+        "wires": [
+            [
+                "3f9a8df7cb4eb170"
+            ]
+        ]
+    },
+    {
+        "id": "8446514796b4815d",
+        "type": "ui_gauge",
+        "z": "4b3b469a15245346",
+        "name": "",
+        "group": "9cac3505b4f98279",
+        "order": 2,
+        "width": 0,
+        "height": 0,
+        "gtype": "gage",
+        "title": "gauge",
+        "label": "units",
+        "format": "{{msg.payload}} BPM",
+        "min": 0,
+        "max": "1024",
+        "colors": [
+            "#00b500",
+            "#e6e600",
+            "#ca3838"
+        ],
+        "seg1": "",
+        "seg2": "",
+        "diff": false,
+        "className": "",
+        "x": 1630,
+        "y": 480,
+        "wires": []
+    },
+    {
+        "id": "c9e4dd500e2b5a3f",
+        "type": "file in",
+        "z": "4b3b469a15245346",
+        "name": "",
+        "filename": "D:\\unisubjects\\ki_1_nam_4\\DSP_Programming\\project_ecg\\ecg-data.csv",
+        "filenameType": "str",
+        "format": "utf8",
+        "chunk": false,
+        "sendError": false,
+        "encoding": "utf8",
+        "allProps": false,
+        "x": 580,
+        "y": 640,
+        "wires": [
+            [
+                "d97e9e9592cef69c"
+            ]
+        ]
+    },
+    {
+        "id": "e77ca79ebce0a997",
+        "type": "inject",
+        "z": "4b3b469a15245346",
+        "name": "",
+        "props": [],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "x": 230,
+        "y": 640,
+        "wires": [
+            [
+                "c9e4dd500e2b5a3f"
+            ]
+        ]
+    },
+    {
+        "id": "d97e9e9592cef69c",
+        "type": "function",
+        "z": "4b3b469a15245346",
+        "name": "function 1",
+        "func": "if (typeof msg.payload === \"string\" && msg.payload.trim().length > 0) {\n    try {\n        // Tách chuỗi bằng ký tự xuống dòng và loại bỏ các dòng trống\n        var rawValues = msg.payload.split('\\n').map(value => value.trim()).filter(value => value !== \"\");\n\n        // Chuyển từng giá trị sang số và loại bỏ giá trị không hợp lệ\n        var numericValues = rawValues.map(Number).filter(value => !isNaN(value));\n\n        if (numericValues.length === 0) throw new Error(\"No valid numeric values found in payload\");\n\n        // Gán mảng số vào payload\n        msg.payload = numericValues;\n\n    } catch (err) {\n        node.error(\"Error parsing payload: \" + err.message, msg);\n        return null;\n    }\n} else {\n    node.error(\"Invalid or empty payload received\", msg);\n    return null;\n}\n    msg['topic'] = 'ecg-signal'\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 940,
+        "y": 640,
+        "wires": [
+            [
+                "86c054a367d0ea37"
+            ]
+        ]
+    },
+    {
+        "id": "86c054a367d0ea37",
+        "type": "python-function-ps",
+        "z": "4b3b469a15245346",
+        "name": "Nomalized Signals",
+        "pythonPathType": "global",
+        "pythonPath": "python3",
+        "globalPythonName": "C:\\Users\\ADMIN\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+        "importPathList": [],
+        "fnCodePre": "\n# user code here.\n",
+        "fnCode": "import numpy as np\nimport pandas as pd\nimport statistics as stat\n\n# Kiểm tra dữ liệu đầu vào\nif 'payload' not in msg or not isinstance(msg['payload'], list):\n    msg['payload'] = {\"error\": \"Dữ liệu không hợp lệ, cần có 'payload' dạng list\"}\nelse:\n    ecg_signal = np.array(msg['payload'])\n\n    # Hàm chuẩn hóa tín hiệu\n    def normalize_signal(signal):\n        \"\"\"\n        Normalize signal to the range [-1, 1].\n        \"\"\"\n        signal_min = np.min(signal)\n        signal_max = np.max(signal)\n        normalized_signal = (signal - signal_min) / (signal_max - signal_min) * 2 - 1\n        return normalized_signal\n\n    # Chuẩn hóa tín hiệu ECG\n    normalized_ecg = normalize_signal(ecg_signal)\n\n    # Trả kết quả\n    msg['payload'] = normalized_ecg.tolist()\n    msg['topic'] = \"ecg-signal\"\n  \n# Trả kết quả cho Node-RED\nreturn msg\n",
+        "fnCodePost": "\n# user code here.\n",
+        "x": 950,
+        "y": 500,
+        "wires": [
+            [
+                "1f57664f7dbb870d",
+                "2eda7e855fd98e34"
+            ]
+        ]
+    },
+    {
+        "id": "1f57664f7dbb870d",
+        "type": "python-function-ps",
+        "z": "4b3b469a15245346",
+        "name": "Find_peaks",
+        "pythonPathType": "global",
+        "pythonPath": "python3",
+        "globalPythonName": "C:\\Users\\ADMIN\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+        "importPathList": [],
+        "fnCodePre": "\n# user code here.\n",
+        "fnCode": "from scipy.signal import find_peaks\nimport numpy as np\n\n# Kiểm tra dữ liệu đầu vào\nif 'payload' not in msg or not isinstance(msg['payload'], list):\n    msg['payload'] = {\"error\": \"Dữ liệu không hợp lệ, cần có 'payload' dạng list\"}\nelse:\n    # Lấy tín hiệu ECG từ payload\n    ecg_signal = np.array(msg['payload'])\n    fs = 100  # Tần số mẫu, có thể thay đổi tùy vào dữ liệu của bạn\n\n    # Tính toán các chỉ số thống kê của tín hiệu\n    mean_signal = np.mean(ecg_signal)\n    std_signal = np.std(ecg_signal)\n\n    # Phát hiện các đỉnh trong tín hiệu ECG\n    r_peaks, _ = find_peaks(\n        ecg_signal, \n        distance=fs // 3,  # Khoảng cách tối thiểu giữa các đỉnh (~333ms)\n        height=mean_signal + 0.8 * std_signal  # Ngưỡng phát hiện đỉnh\n    )\n\n    # Chuẩn bị kết quả trả về\n    msg['payload'] = {\n        \"r_peaks\": r_peaks.tolist()\n    }\n  \n# Trả kết quả cho Node-RED\nreturn msg\n",
+        "fnCodePost": "\n# user code here.\n",
+        "x": 1170,
+        "y": 480,
+        "wires": [
+            [
+                "b8a85a230b3c745d",
+                "3a85bd10c5d12666"
+            ]
+        ]
+    },
+    {
+        "id": "b8a85a230b3c745d",
+        "type": "python-function-ps",
+        "z": "4b3b469a15245346",
+        "name": "Heart Beat",
+        "pythonPathType": "global",
+        "pythonPath": "python3",
+        "globalPythonName": "C:\\Users\\ADMIN\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+        "importPathList": [],
+        "fnCodePre": "\n# user code here.\n",
+        "fnCode": "import numpy as np\n\n# Kiểm tra dữ liệu đầu vào\nif 'payload' not in msg or not isinstance(msg['payload'], dict):\n    msg['payload'] = {\"error\": \"Dữ liệu không hợp lệ, cần có 'payload' chứa danh sách các đỉnh\"}\nelse:\n    peaks = np.array(msg['payload'].get('r_peaks', []))\n    fs = 100  # Tần số mẫu, có thể thay đổi tùy vào dữ liệu của bạn\n\n    if len(peaks) < 2:\n        msg['payload'] = {\"error\": \"Không đủ đỉnh để tính nhịp tim\"}\n    else:\n        # Tính khoảng cách giữa các đỉnh (RR intervals)\n        peak_times = peaks / fs  # Chuyển đổi chỉ số mẫu thành thời gian (s)\n        rr_intervals = np.diff(peak_times)  # Khoảng cách thời gian giữa các đỉnh\n\n        # Tính nhịp tim (beats per minute)\n        average_rr_interval = np.mean(rr_intervals)  # Trung bình khoảng cách giữa các đỉnh\n        heart_rate = int(60 / average_rr_interval)\n\n        # Trả kết quả nhịp tim\n        msg['payload'] = heart_rate\n        msg['topic'] = \"heart-rate\"\n\n# Trả kết quả cho Node-RED\nreturn msg\n",
+        "fnCodePost": "\n# user code here.\n",
+        "x": 1390,
+        "y": 480,
+        "wires": [
+            [
+                "8446514796b4815d",
+                "2eda7e855fd98e34"
+            ]
+        ]
+    },
+    {
+        "id": "827a2eec9a323337",
+        "type": "csv",
+        "z": "4b3b469a15245346",
+        "name": "",
+        "spec": "rfc",
+        "sep": ",",
+        "hdrin": "",
+        "hdrout": "none",
+        "multi": "one",
+        "ret": "\\r\\n",
+        "temp": "ecg",
+        "skip": "0",
+        "strings": true,
+        "include_empty_strings": "",
+        "include_null_values": "",
+        "x": 670,
+        "y": 400,
+        "wires": [
+            [
+                "6dd09efe102cafcf"
+            ]
+        ]
+    },
+    {
+        "id": "6dd09efe102cafcf",
+        "type": "file",
+        "z": "4b3b469a15245346",
+        "name": "",
+        "filename": "D:\\unisubjects\\ki_1_nam_4\\DSP_Programming\\project_ecg\\check.csv",
+        "filenameType": "str",
+        "appendNewline": false,
+        "createDir": true,
+        "overwriteFile": "false",
+        "encoding": "utf8",
+        "x": 1030,
+        "y": 400,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "c45a308adff95d17",
+        "type": "function",
+        "z": "4b3b469a15245346",
+        "name": "Chia data và gửi và csv",
+        "func": "// Kiểm tra nếu msg.payload là một mảng\nif (Array.isArray(msg.payload)) {\n    // Tạo một mảng mới để chứa các phần tử\n    var newData = [];\n\n    // Tách từng phần tử của mảng msg.payload thành các mảng con\n    // Mỗi phần tử sẽ là một mảng gồm một phần tử duy nhất\n    msg.payload.forEach(function (item) {\n        newData.push([item]);  // Thêm mỗi phần tử vào một mảng con\n    });\n\n    // Gửi mảng mới vào msg.payload\n    msg.payload = newData;\n} else {\n    node.error(\"Dữ liệu không phải là mảng\", msg);\n    return null;\n}\n\n// Trả về msg với payload đã được tách thành mảng con\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 450,
+        "y": 400,
+        "wires": [
+            [
+                "827a2eec9a323337"
+            ]
+        ]
+    },
+    {
+        "id": "9c0a787ae2157070",
+        "type": "debug",
+        "z": "4b3b469a15245346",
+        "name": "debug 1",
+        "active": true,
+        "tosidebar": true,
+        "console": true,
+        "tostatus": true,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "payload",
+        "statusType": "auto",
+        "x": 1990,
+        "y": 480,
+        "wires": []
+    },
+    {
+        "id": "2eda7e855fd98e34",
+        "type": "function",
+        "z": "4b3b469a15245346",
+        "name": "Conbine",
+        "func": "// Khởi tạo dữ liệu trong context nếu chưa có\ncontext.data = context.data || {};\n\n// Kiểm tra các topic và lưu dữ liệu vào context\nswitch (msg.topic) {\n    case \"heart-rate\":\n        context.data.heart_rate = msg.payload; // Lưu dữ liệu heart-rate\n        msg = null; // Xóa msg sau khi lưu dữ liệu\n        break;\n    case \"HRV\":\n        context.data.HRV = msg.payload; // Lưu dữ liệu HRV\n        msg = null; // Xóa msg sau khi lưu dữ liệu\n        break;\n    case \"ecg-signal\":\n        context.data.ecg = msg.payload; // Lưu dữ liệu ECG\n        msg = null; // Xóa msg sau khi lưu dữ liệu\n        break;\n    default:\n        msg = null; // Xóa msg nếu topic không phải là \"heart-rate\" hoặc \"HRV\"\n        break;\n}\n\n// Kiểm tra nếu đã nhận đủ dữ liệu từ cả hai function\nif (context.data.heart_rate != null && context.data.HRV != null) {\n    // Tạo message kết hợp dữ liệu vào phần payload\n    let msg2 = {\n        payload: {\n            \"ecg-signal\": context.data.ecg,\n            \"heart-rate\": context.data.heart_rate, // Dữ liệu từ heart-rate\n            \"r_peaks\": context.data.HRV.r_peaks,\n            \"rr_intervals\": context.data.HRV.rr_intervals, // Trường rr_intervals từ HRV\n            \"std_rr\": context.data.HRV.std_rr // Trường std_rr từ HRV\n        },\n        topic: \"combined-data\"\n    };\n    context.data = null; // Reset context sau khi đã xử lý\n    return msg2; // Trả về message kết hợp\n} else {\n    return msg; // Trả về msg nếu chưa đủ dữ liệu\n}\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1560,
+        "y": 620,
+        "wires": [
+            [
+                "168b428caed15f3c",
+                "b3b453a87d8a7787"
+            ]
+        ]
+    },
+    {
+        "id": "168b428caed15f3c",
+        "type": "python-function-ps",
+        "z": "4b3b469a15245346",
+        "name": "Fuzzy-Logic",
+        "pythonPathType": "global",
+        "pythonPath": "python3",
+        "globalPythonName": "C:\\Users\\ADMIN\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+        "importPathList": [],
+        "fnCodePre": "",
+        "fnCode": "import numpy as np\nimport skfuzzy as fuzz\nfrom skfuzzy import control as ctrl\n\n# Bước 1: Truy xuất giá trị từ payload\nHR_value = int(msg['payload']['heart-rate'])  # Heart Rate\nSDNN_value = int(msg['payload']['std_rr'])    # Standard Deviation of RR intervals\nr_peaks = np.array(msg['payload'].get('r_peaks', []))\necg = np.array(msg['payload'].get('ecg-signal', []))\n\n# Kiểm tra dữ liệu hợp lệ\nif HR_value == 0 or SDNN_value == 0:\n    msg['payload']['status'] = 'Error: Invalid data'\n    msg['topic'] = 'error'\nelse:\n    # Bước 2: Định nghĩa phạm vi và các hàm membership cho các biến đầu vào\n    HR_range = np.arange(30, 181, 1)\n    SDNN_range = np.arange(0, 201, 1)\n    HeartCondition_range = np.arange(0, 101, 1)\n\n    # Định nghĩa các biến đầu vào và đầu ra\n    HR = ctrl.Antecedent(HR_range, 'HR')\n    SDNN = ctrl.Antecedent(SDNN_range, 'SDNN')\n\n    # Định nghĩa các biến đầu ra\n    HeartCondition = ctrl.Consequent(HeartCondition_range, 'HeartCondition')\n\n    # Membership functions cho HR\n    HR['low'] = fuzz.trapmf(HR.universe, [30, 30, 50, 60])\n    HR['normal'] = fuzz.trimf(HR.universe, [45, 69, 95])\n    HR['high'] = fuzz.trapmf(HR.universe, [90, 120, 180, 180])\n\n    # Membership functions cho SDNN\n    SDNN['low'] = fuzz.trapmf(SDNN.universe, [0, 0, 30, 60])\n    SDNN['normal'] = fuzz.trimf(SDNN.universe, [45, 100, 155])\n    SDNN['high'] = fuzz.trapmf(SDNN.universe, [145, 170, 200, 200])\n\n    # Membership functions cho HeartCondition\n    HeartCondition['bradycardia'] = fuzz.trimf(HeartCondition.universe, [0, 25, 50])\n    HeartCondition['normal'] = fuzz.trimf(HeartCondition.universe, [25, 50, 75])\n    HeartCondition['tachycardia'] = fuzz.trimf(HeartCondition.universe, [50, 75, 100])\n\n    # Bước 3: Định nghĩa các quy tắc fuzzy\n    rule1 = ctrl.Rule(HR['low'] & SDNN['low'], HeartCondition['bradycardia'])  # Nhịp tim thấp, SDNN thấp: Bradycardia\n    rule2 = ctrl.Rule(HR['low'] & SDNN['normal'], HeartCondition['bradycardia'])  # Nhịp tim thấp, SDNN bình thường: Bradycardia\n    rule3 = ctrl.Rule(HR['low'] & SDNN['high'], HeartCondition['bradycardia'])  # Nhịp tim thấp, SDNN cao: Bradycardia\n    rule4 = ctrl.Rule(HR['normal'] & SDNN['low'], HeartCondition['bradycardia'])  # Nhịp tim bình thường, SDNN thấp: Normal\n    rule5 = ctrl.Rule(HR['normal'] & SDNN['normal'], HeartCondition['normal'])  # Nhịp tim bình thường, SDNN bình thường: Normal\n    rule6 = ctrl.Rule(HR['normal'] & SDNN['high'], HeartCondition['normal'])  # Nhịp tim bình thường, SDNN cao: Normal\n    rule7 = ctrl.Rule(HR['high'] & SDNN['low'], HeartCondition['tachycardia'])  # Nhịp tim cao, SDNN thấp: Tachycardia\n    rule8 = ctrl.Rule(HR['high'] & SDNN['normal'], HeartCondition['tachycardia'])  # Nhịp tim cao, SDNN bình thường: Tachycardia\n    rule9 = ctrl.Rule(HR['high'] & SDNN['high'], HeartCondition['tachycardia'])  # Nhịp tim cao, SDNN cao: Tachycardia\n\n    # Bước 4: Xây dựng hệ thống điều khiển fuzzy\n    heart_condition_ctrl = ctrl.ControlSystem([rule1, rule2, rule3, rule4, rule5, rule6, rule7, rule8, rule9])\n    heart_condition_sim = ctrl.ControlSystemSimulation(heart_condition_ctrl)\n\n    # Bước 5: Nhập giá trị và tính toán kết quả\n    heart_condition_sim.input['HR'] = HR_value  # Nhịp tim HR\n    heart_condition_sim.input['SDNN'] = SDNN_value  # SDNN (standard deviation of RR intervals)\n\n    heart_condition_sim.compute()\n\n    # Bước 6: Xác định tình trạng tim mạch\n    HeartCondition_value = heart_condition_sim.output['HeartCondition']\n    \n    # Làm tròn kết quả lên 2 chữ số thập phân\n    HeartCondition_value_rounded = np.ceil(HeartCondition_value * 100) / 100.0\n\n    if HeartCondition_value_rounded <= 25:\n        condition = 'Bradycardia'\n    elif HeartCondition_value_rounded >= 75:\n        condition = 'Tachycardia'\n    else:\n        condition = 'Normal'\n\n    # Trả về kết quả xử lý\n    msg['payload'] = {\n        \"ecg-signal\": ecg.tolist(),\n        \"heart-rate\": HR_value,\n        \"r_peaks\" : r_peaks.tolist(),\n        \"std_rr\": SDNN_value,\n        \"status\": \"Processed successfully\",\n        \"HeartCondition\": condition,\n        \"HeartConditionValue\": HeartCondition_value_rounded\n    }\n    msg['topic'] = \"result\"\n\n# Return the modified msg to Node-RED\nreturn msg\n",
+        "fnCodePost": "\n# user code here.\n",
+        "x": 1750,
+        "y": 620,
+        "wires": [
+            [
+                "9c0a787ae2157070",
+                "2fc1699d89cba5f0",
+                "393c2073409c134e",
+                "898989c9f784345e"
+            ]
+        ]
+    },
+    {
+        "id": "2fc1699d89cba5f0",
+        "type": "json",
+        "z": "4b3b469a15245346",
+        "name": "",
+        "property": "payload",
+        "action": "obj",
+        "pretty": true,
+        "x": 2190,
+        "y": 560,
+        "wires": [
+            [
+                "f886a465571a2edf"
+            ]
+        ]
+    },
+    {
+        "id": "66d784293e012730",
+        "type": "debug",
+        "z": "4b3b469a15245346",
+        "name": "debug 3",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 2040,
+        "y": 940,
+        "wires": []
+    },
+    {
+        "id": "3568a97da7a703ff",
+        "type": "e-mail",
+        "z": "4b3b469a15245346",
+        "server": "smtp.gmail.com",
+        "port": "465",
+        "authtype": "BASIC",
+        "saslformat": true,
+        "token": "oauth2Response.access_token",
+        "secure": true,
+        "tls": false,
+        "name": "longtrinhlehoang@gmail.com",
+        "dname": "Notificaton",
+        "x": 2210,
+        "y": 660,
+        "wires": []
+    },
+    {
+        "id": "393c2073409c134e",
+        "type": "function",
+        "z": "4b3b469a15245346",
+        "name": "Warning",
+        "func": "if (msg.payload.HeartCondition === 'Bradycardia' || msg.payload.HeartCondition === 'Tachycardia') {\n    // Tạo nội dung HTML cho email\n    let alertPayload = `\n        <h3 style=\"color: red;\">ALERT: Heart condition detected!</h3>\n        <p><strong>Condition:</strong> ${msg.payload.HeartCondition}</p>\n        <p><strong>Heart Rate:</strong> ${msg.payload[\"heart-rate\"]} BPM</p>\n        <p><strong>Time:</strong> ${new Date().toLocaleString()}</p>\n        <p style=\"color: darkorange;\">Please take necessary actions.</p>\n    `;\n    \n    // Gắn HTML vào payload\n    msg.payload = alertPayload;\n    msg['topic'] = \"ALERT\";\n    return msg; // Gửi thông báo\n} else {\n    return null; // Không gửi gì nếu nhịp tim bình thường\n}\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1960,
+        "y": 660,
+        "wires": [
+            [
+                "3568a97da7a703ff",
+                "e2b9968c337d02bd"
+            ]
+        ]
+    },
+    {
+        "id": "5648641656fea1e6",
+        "type": "function",
+        "z": "4b3b469a15245346",
+        "name": "Conbine",
+        "func": "msg = {\n    payload: {\n        \"heart-rate\": 119, // Dữ liệu từ heart-rate\n        \"std_rr\": 153 // Trường std_rr từ HRV\n    },\n    topic: \"combined-data\"\n    };\nreturn msg; // Trả về msg nếu chưa đủ dữ liệu\n\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1560,
+        "y": 740,
+        "wires": [
+            [
+                "168b428caed15f3c"
+            ]
+        ]
+    },
+    {
+        "id": "4c5b5ed5b4fd93fe",
+        "type": "inject",
+        "z": "4b3b469a15245346",
+        "name": "",
+        "props": [],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "x": 1310,
+        "y": 780,
+        "wires": [
+            [
+                "5648641656fea1e6"
+            ]
+        ]
+    },
+    {
+        "id": "e2b9968c337d02bd",
+        "type": "debug",
+        "z": "4b3b469a15245346",
+        "name": "debug 4",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 2180,
+        "y": 740,
+        "wires": []
+    },
+    {
+        "id": "2fb73355d0f0bc1c",
+        "type": "firebase modify",
+        "z": "4b3b469a15245346",
+        "name": "Send to Firebase",
+        "firebaseconfig": "",
+        "childpath": "",
+        "method": "push",
+        "value": "msg.payload",
+        "priority": "msg.priority",
+        "x": 2150,
+        "y": 800,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "f886a465571a2edf",
+        "type": "websocket out",
+        "z": "4b3b469a15245346",
+        "name": "",
+        "server": "5957395ddb09bb71",
+        "client": "",
+        "x": 2370,
+        "y": 560,
+        "wires": []
+    },
+    {
+        "id": "898989c9f784345e",
+        "type": "function",
+        "z": "4b3b469a15245346",
+        "name": "Convert to Firebase",
+        "func": "// Lấy các giá trị từ payload\nlet heartRate = msg.payload[\"heart-rate\"];\nlet condition = msg.payload[\"HeartCondition\"];\nlet currentTime = new Date().toLocaleString(); // Lấy thời gian hiện tại\n\n// Tạo payload mới chỉ chứa các giá trị cần thiết\nmsg.payload = {\n    \"heart-rate\": heartRate,\n    \"condition\": condition,\n    \"time\": currentTime\n};\n\n// Gắn topic nếu cần thiết\nmsg['topic'] = \"firebase-data\";\n\n// Trả về msg đã chỉnh sửa\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1890,
+        "y": 800,
+        "wires": [
+            [
+                "2fb73355d0f0bc1c",
+                "66d784293e012730"
+            ]
+        ]
+    },
+    {
+        "id": "3a85bd10c5d12666",
+        "type": "python-function-ps",
+        "z": "4b3b469a15245346",
+        "name": "HRV",
+        "pythonPathType": "global",
+        "pythonPath": "python3",
+        "globalPythonName": "C:\\Users\\ADMIN\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+        "importPathList": [],
+        "fnCodePre": "\n# user code here.\n",
+        "fnCode": "import numpy as np\n\n# Kiểm tra dữ liệu đầu vào\nif 'payload' not in msg or not isinstance(msg['payload'], dict) or 'r_peaks' not in msg['payload']:\n    msg['payload'] = {\"error\": \"Dữ liệu không hợp lệ, cần có 'peaks' từ node trước\"}\nelse:\n    # Lấy danh sách các đỉnh R từ payload\n    r_peaks = np.array(msg['payload']['r_peaks'])\n    fs = 100  # Tần số mẫu, phải đồng nhất với node trước\n\n    if len(r_peaks) < 2:\n        msg['payload'] = {\"error\": \"Không đủ đỉnh R để tính HRV\"}\n    else:\n        # Tính khoảng R-R (ms)\n        rr_intervals = np.diff(r_peaks) / fs * 1000  # Chuyển đổi sang milliseconds\n\n        # Tính các chỉ số HRV\n        mean_rr = np.mean(rr_intervals)  # Giá trị trung bình\n        std_rr = np.std(rr_intervals)   # Độ lệch chuẩn\n    \n        # Chuẩn bị kết quả trả về\n        msg['payload'] = {\n            \"r_peaks\":  r_peaks.tolist(),\n            \"rr_intervals\": rr_intervals.tolist(),\n            \"std_rr\": std_rr\n        }\n        msg['topic'] = \"HRV\"\n# Trả kết quả cho Node-RED\nreturn msg\n",
+        "fnCodePost": "\n# user code here.\n",
+        "x": 1370,
+        "y": 660,
+        "wires": [
+            [
+                "2eda7e855fd98e34"
+            ]
+        ]
+    },
+    {
+        "id": "3ddbd5a9ef829735",
+        "type": "python-function-ps",
+        "z": "4b3b469a15245346",
+        "name": "Fuzzy-Logic-3",
+        "pythonPathType": "global",
+        "pythonPath": "python3",
+        "globalPythonName": "C:\\Users\\ADMIN\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+        "importPathList": [],
+        "fnCodePre": "",
+        "fnCode": "import numpy as np\nimport skfuzzy as fuzz\nfrom skfuzzy import control as ctrl\n\n# Bước 1: Truy xuất giá trị từ payload\nHR_value = int(msg['payload']['heart-rate'])  # Heart Rate\nSDNN_value = int(msg['payload']['std_rr'])    # Standard Deviation of RR intervals\nr_peaks = np.array(msg['payload'].get('r_peaks', []))\necg = np.array(msg['payload'].get('ecg-signal', []))\n\n# Kiểm tra dữ liệu hợp lệ\nif HR_value == 0 or SDNN_value == 0:\n    msg['payload']['status'] = 'Error: Invalid data'\n    msg['topic'] = 'error'\nelse:\n    # Bước 2: Định nghĩa phạm vi và các hàm membership cho các biến đầu vào\n    HR_range = np.arange(30, 181, 1)\n    SDNN_range = np.arange(0, 201, 1)\n    HeartCondition_range = np.arange(0, 101, 1)\n\n    # Định nghĩa các biến đầu vào và đầu ra\n    HR = ctrl.Antecedent(HR_range, 'HR')\n    SDNN = ctrl.Antecedent(SDNN_range, 'SDNN')\n\n    # Định nghĩa các biến đầu ra\n    HeartCondition = ctrl.Consequent(HeartCondition_range, 'HeartCondition')\n\n    # Membership functions cho HR\n    HR['low'] = fuzz.trapmf(HR.universe, [30, 30, 50, 60])\n    HR['normal'] = fuzz.trimf(HR.universe, [45, 69, 95])\n    HR['high'] = fuzz.trapmf(HR.universe, [90, 120, 180, 180])\n\n    # Membership functions cho SDNN\n    SDNN['low'] = fuzz.trapmf(SDNN.universe, [0, 0, 30, 60])\n    SDNN['normal'] = fuzz.trimf(SDNN.universe, [45, 100, 155])\n    SDNN['high'] = fuzz.trapmf(SDNN.universe, [145, 170, 200, 200])\n\n    # Membership functions cho HeartCondition\n    HeartCondition['arrhythmia'] = fuzz.trimf(HeartCondition.universe, [0, 20, 40])\n    HeartCondition['sick_sinus_syndrome'] = fuzz.trimf(HeartCondition.universe, [30, 50, 70])\n    HeartCondition['heart_failure'] = fuzz.trimf(HeartCondition.universe, [60, 80, 100])\n    HeartCondition['normal'] = fuzz.trimf(HeartCondition.universe, [30, 50, 70])\n\n    # Bước 3: Định nghĩa các quy tắc fuzzy\n    rule1 = ctrl.Rule(HR['low'] & SDNN['low'], HeartCondition['arrhythmia'])  # Nhịp tim thấp, SDNN thấp: Arrhythmia\n    rule2 = ctrl.Rule(HR['low'] & SDNN['normal'], HeartCondition['arrhythmia'])  # Nhịp tim thấp, SDNN bình thường: Arrhythmia\n    rule3 = ctrl.Rule(HR['low'] & SDNN['high'], HeartCondition['arrhythmia'])  # Nhịp tim thấp, SDNN cao: Arrhythmia\n    rule4 = ctrl.Rule(HR['normal'] & SDNN['low'], HeartCondition['normal'])  # Nhịp tim bình thường, SDNN thấp: Normal\n    rule5 = ctrl.Rule(HR['normal'] & SDNN['normal'], HeartCondition['normal'])  # Nhịp tim bình thường, SDNN bình thường: Normal\n    rule6 = ctrl.Rule(HR['normal'] & SDNN['high'], HeartCondition['normal'])  # Nhịp tim bình thường, SDNN cao: Normal\n    rule7 = ctrl.Rule(HR['high'] & SDNN['low'], HeartCondition['sick_sinus_syndrome'])  # Nhịp tim cao, SDNN thấp: Sick Sinus Syndrome\n    rule8 = ctrl.Rule(HR['high'] & SDNN['normal'], HeartCondition['sick_sinus_syndrome'])  # Nhịp tim cao, SDNN bình thường: Sick Sinus Syndrome\n    rule9 = ctrl.Rule(HR['high'] & SDNN['high'], HeartCondition['heart_failure'])  # Nhịp tim cao, SDNN cao: Heart Failure\n\n    # Thêm các quy tắc nữa để làm đầy đủ 15 quy tắc\n    rule10 = ctrl.Rule(HR['low'] & SDNN['high'], HeartCondition['arrhythmia'])  # Nhịp tim thấp, SDNN cao: Arrhythmia\n    rule11 = ctrl.Rule(HR['high'] & SDNN['low'], HeartCondition['heart_failure'])  # Nhịp tim cao, SDNN thấp: Heart Failure\n    rule12 = ctrl.Rule(HR['high'] & SDNN['normal'], HeartCondition['heart_failure'])  # Nhịp tim cao, SDNN bình thường: Heart Failure\n    rule13 = ctrl.Rule(HR['normal'] & SDNN['high'], HeartCondition['normal'])  # Nhịp tim bình thường, SDNN cao: Normal\n    rule14 = ctrl.Rule(HR['low'] & SDNN['normal'], HeartCondition['arrhythmia'])  # Nhịp tim thấp, SDNN bình thường: Arrhythmia\n    rule15 = ctrl.Rule(HR['normal'] & SDNN['normal'], HeartCondition['normal'])  # Nhịp tim bình thường, SDNN bình thường: Normal\n\n    # Bước 4: Xây dựng hệ thống điều khiển fuzzy\n    heart_condition_ctrl = ctrl.ControlSystem([rule1, rule2, rule3, rule4, rule5, rule6, rule7, rule8, rule9, rule10, rule11, rule12, rule13, rule14, rule15])\n    heart_condition_sim = ctrl.ControlSystemSimulation(heart_condition_ctrl)\n\n    # Bước 5: Nhập giá trị và tính toán kết quả\n    heart_condition_sim.input['HR'] = HR_value  # Nhịp tim HR\n    heart_condition_sim.input['SDNN'] = SDNN_value  # SDNN (standard deviation of RR intervals)\n\n    heart_condition_sim.compute()\n\n    # Bước 6: Xác định tình trạng tim mạch\n    HeartCondition_value = heart_condition_sim.output['HeartCondition']\n    \n    # Làm tròn kết quả lên 2 chữ số thập phân\n    HeartCondition_value_rounded = np.ceil(HeartCondition_value * 100) / 100.0\n\n    # Phân loại tình trạng tim\n    if HeartCondition_value_rounded <= 20:\n        condition = 'Arrhythmia'\n    elif HeartCondition_value_rounded <= 40:\n        condition = 'Sick Sinus Syndrome'\n    elif HeartCondition_value_rounded <= 70:\n        condition = 'Heart Failure'\n    else:\n        condition = 'Normal'\n\n    # Trả về kết quả xử lý\n    msg['payload'] = {\n        \"ecg-signal\": ecg.tolist(),\n        \"heart-rate\": HR_value,\n        \"r_peaks\" : r_peaks.tolist(),\n        \"std_rr\": SDNN_value,\n        \"status\": \"Processed successfully\",\n        \"HeartCondition\": condition,\n        \"HeartConditionValue\": HeartCondition_value_rounded\n    }\n    msg['topic'] = \"result\"\n\n# Return the modified msg to Node-RED\nreturn msg\n",
+        "fnCodePost": "\n# user code here.\n",
+        "x": 1500,
+        "y": 300,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "7a29a41b4338e391",
+        "type": "python-function-ps",
+        "z": "4b3b469a15245346",
+        "name": "Fuzzy-Logic-2",
+        "pythonPathType": "global",
+        "pythonPath": "python3",
+        "globalPythonName": "C:\\Users\\ADMIN\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+        "importPathList": [],
+        "fnCodePre": "",
+        "fnCode": "import numpy as np\nimport skfuzzy as fuzz\nfrom skfuzzy import control as ctrl\n\n# Bước 1: Truy xuất giá trị từ payload\nHR_value = int(msg['payload']['heart-rate'])  # Heart Rate\nSDNN_value = int(msg['payload']['std_rr'])    # Standard Deviation of RR intervals\nr_peaks = np.array(msg['payload'].get('r_peaks', []))\necg = np.array(msg['payload'].get('ecg-signal', []))\n\n# Kiểm tra dữ liệu hợp lệ\nif HR_value == 0 or SDNN_value == 0:\n    msg['payload']['status'] = 'Error: Invalid data'\n    msg['topic'] = 'error'\nelse:\n    # Bước 2: Định nghĩa phạm vi và các hàm membership cho các biến đầu vào\n    HR_range = np.arange(30, 181, 1)\n    SDNN_range = np.arange(0, 201, 1)\n    HeartCondition_range = np.arange(0, 101, 1)\n\n    # Định nghĩa các biến đầu vào và đầu ra\n    HR = ctrl.Antecedent(HR_range, 'HR')\n    SDNN = ctrl.Antecedent(SDNN_range, 'SDNN')\n\n    # Định nghĩa các biến đầu ra\n    HeartCondition = ctrl.Consequent(HeartCondition_range, 'HeartCondition')\n\n    # Membership functions cho HR\n    HR['low'] = fuzz.trapmf(HR.universe, [30, 30, 50, 60])\n    HR['normal'] = fuzz.trimf(HR.universe, [45, 69, 95])\n    HR['high'] = fuzz.trapmf(HR.universe, [90, 120, 180, 180])\n\n    # Membership functions cho SDNN\n    SDNN['low'] = fuzz.trapmf(SDNN.universe, [0, 0, 30, 60])\n    SDNN['normal'] = fuzz.trimf(SDNN.universe, [45, 100, 155])\n    SDNN['high'] = fuzz.trapmf(SDNN.universe, [145, 170, 200, 200])\n\n    # Membership functions cho HeartCondition\n    HeartCondition['bradycardia'] = fuzz.trimf(HeartCondition.universe, [0, 25, 50])\n    HeartCondition['normal_or_warning'] = fuzz.trimf(HeartCondition.universe, [25, 50, 75])  # Cảnh báo nhẹ\n    HeartCondition['normal'] = fuzz.trimf(HeartCondition.universe, [25, 50, 75])\n    HeartCondition['tachycardia'] = fuzz.trimf(HeartCondition.universe, [50, 75, 100])\n    HeartCondition['tachycardia_severe'] = fuzz.trimf(HeartCondition.universe, [75, 100, 100])  # Tachycardia nghiêm trọng\n    HeartCondition['tachycardia_moderate'] = fuzz.trimf(HeartCondition.universe, [50, 75, 100])  # Tachycardia vừa phải\n\n    # Bước 3: Định nghĩa các quy tắc fuzzy\n    rule1 = ctrl.Rule(HR['low'] & SDNN['low'], HeartCondition['bradycardia'])  # Nhịp tim thấp, SDNN thấp: Bradycardia\n    rule2 = ctrl.Rule(HR['low'] & SDNN['normal'], HeartCondition['bradycardia'])  # Nhịp tim thấp, SDNN bình thường: Bradycardia\n    rule3 = ctrl.Rule(HR['low'] & SDNN['high'], HeartCondition['bradycardia'])  # Nhịp tim thấp, SDNN cao: Bradycardia\n    rule4 = ctrl.Rule(HR['normal'] & SDNN['low'], HeartCondition['normal_or_warning'])  # Nhịp tim bình thường, SDNN thấp: Cảnh báo nhẹ\n    rule5 = ctrl.Rule(HR['normal'] & SDNN['normal'], HeartCondition['normal'])  # Nhịp tim bình thường, SDNN bình thường: Normal\n    rule6 = ctrl.Rule(HR['normal'] & SDNN['high'], HeartCondition['normal'])  # Nhịp tim bình thường, SDNN cao: Normal\n    rule7 = ctrl.Rule(HR['high'] & SDNN['low'], HeartCondition['tachycardia_severe'])  # Nhịp tim cao, SDNN thấp: Tachycardia nghiêm trọng\n    rule8 = ctrl.Rule(HR['high'] & SDNN['normal'], HeartCondition['tachycardia'])  # Nhịp tim cao, SDNN bình thường: Tachycardia\n    rule9 = ctrl.Rule(HR['high'] & SDNN['high'], HeartCondition['tachycardia_moderate'])  # Nhịp tim cao, SDNN cao: Tachycardia vừa phải\n\n    # Bước 4: Xây dựng hệ thống điều khiển fuzzy\n    heart_condition_ctrl = ctrl.ControlSystem([rule1, rule2, rule3, rule4, rule5, rule6, rule7, rule8, rule9])\n    heart_condition_sim = ctrl.ControlSystemSimulation(heart_condition_ctrl)\n\n    # Bước 5: Nhập giá trị và tính toán kết quả\n    heart_condition_sim.input['HR'] = HR_value  # Nhịp tim HR\n    heart_condition_sim.input['SDNN'] = SDNN_value  # SDNN (standard deviation of RR intervals)\n\n    heart_condition_sim.compute()\n\n    # Bước 6: Xác định tình trạng tim mạch\n    HeartCondition_value = heart_condition_sim.output['HeartCondition']\n    \n    # Làm tròn kết quả lên 2 chữ số thập phân\n    HeartCondition_value_rounded = np.ceil(HeartCondition_value * 100) / 100.0\n\n    # Cập nhật tình trạng tim mạch dựa trên các giá trị fuzzy\n    if HeartCondition_value_rounded <= 25:\n        condition = 'Bradycardia'\n    elif 25 < HeartCondition_value_rounded < 50:\n        condition = 'Normal or Warning'\n    elif 50 <= HeartCondition_value_rounded < 75:\n        condition = 'Tachycardia'\n    elif 75 <= HeartCondition_value_rounded < 100:\n        condition = 'Tachycardia Severe'\n    else:\n        condition = 'Tachycardia Moderate'\n\n    # Trả về kết quả xử lý\n    msg['payload'] = {\n        \"ecg-signal\": ecg.tolist(),\n        \"heart-rate\": HR_value,\n        \"r_peaks\" : r_peaks.tolist(),\n        \"std_rr\": SDNN_value,\n        \"status\": \"Processed successfully\",\n        \"HeartCondition\": condition,\n        \"HeartConditionValue\": HeartCondition_value_rounded\n    }\n    msg['topic'] = \"result\"\n\n# Return the modified msg to Node-RED\nreturn msg\n",
+        "fnCodePost": "\n# user code here.\n",
+        "x": 1880,
+        "y": 300,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "a243cf0e7b15ec21",
+        "type": "function",
+        "z": "4b3b469a15245346",
+        "name": "Start",
+        "func": "msg.startTime = new Date().getTime(); // Lưu thời gian bắt đầu\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 950,
+        "y": 320,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "b3b453a87d8a7787",
+        "type": "function",
+        "z": "4b3b469a15245346",
+        "name": "End",
+        "func": "var endTime = new Date().getTime();  // Lưu thời gian kết thúc\nvar startTime = msg.startTime;       // Thời gian bắt đầu\nvar processingTime = endTime - startTime; // Tính thời gian xử lý\n\nmsg.payload = {\n    processingTime: processingTime\n};\nreturn msg;\n\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1730,
+        "y": 540,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "c637e6efc67146cf",
+        "type": "ui_spacer",
+        "z": "4b3b469a15245346",
+        "name": "spacer",
+        "group": "",
+        "order": 1,
+        "width": "",
+        "height": ""
+    },
+    {
+        "id": "c80d518a5fb1149e",
+        "type": "ui_spacer",
+        "z": "4b3b469a15245346",
+        "name": "spacer",
+        "group": "9cac3505b4f98279",
+        "order": 1,
+        "width": 1,
+        "height": 1
+    },
+    {
+        "id": "b987e6d858e3b31c",
+        "type": "mqtt-broker",
+        "name": "The_MQTT",
+        "broker": "broker.hivemq.com",
+        "port": "1883",
+        "clientid": "",
+        "autoConnect": true,
+        "usetls": false,
+        "protocolVersion": "4",
+        "keepalive": "60",
+        "cleansession": true,
+        "autoUnsubscribe": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthRetain": "false",
+        "birthPayload": "",
+        "birthMsg": {},
+        "closeTopic": "",
+        "closeQos": "0",
+        "closeRetain": "false",
+        "closePayload": "",
+        "closeMsg": {},
+        "willTopic": "",
+        "willQos": "0",
+        "willRetain": "false",
+        "willPayload": "",
+        "willMsg": {},
+        "userProps": "",
+        "sessionExpiry": ""
+    },
+    {
+        "id": "9cac3505b4f98279",
+        "type": "ui_group",
+        "name": "NODE_MCU",
+        "tab": "17ec49d965df841f",
+        "order": 1,
+        "disp": true,
+        "width": "6",
+        "collapse": false,
+        "className": ""
+    },
+    {
+        "id": "5957395ddb09bb71",
+        "type": "websocket-listener",
+        "path": "/ws/data",
+        "wholemsg": "false"
+    },
+    {
+        "id": "17ec49d965df841f",
+        "type": "ui_tab",
+        "name": "Tab 1",
+        "icon": "dashboard",
+        "order": 1
+    }
+]
