@@ -69,14 +69,9 @@ The project follows a modular architecture with the following key components:
 - Expand cloud integration to include more platforms like AWS or Azure.
 - Optimize power consumption for portable use.
 
-## License
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
-
----
-
 ## Acknowledgements
-Special thanks to the contributors and open-source libraries used in this project.
-
+- Special thanks to le Tan Phat (letanphat1522@gmail.com) for collaborating and supporting on this project.
+- We acknowledge the use of open-source libraries such as Firebase SDK, Node-RED, and the Arduino ESP8266 core, which greatly facilitated the development of this project.
 ---
 
 Feel free to reach out for collaboration or questions regarding this project!
